@@ -13,6 +13,7 @@ class Entry < ApplicationRecord
   validates :date, :name, :amount, :currency, presence: true
   validates :date, uniqueness: { scope: [ :account_id, :entryable_type ] }, if: -> { valuation? }
   validates :date, comparison: { greater_than: -> { min_supported_date } }
+  validates :exchange_rate, numericality: { greater_than: 0 }, allow_nil: true
 
   scope :visible, -> {
     joins(:account).where(accounts: { status: [ "draft", "active" ] })
@@ -58,6 +59,23 @@ class Entry < ApplicationRecord
 
   def linked?
     plaid_id.present?
+  end
+
+  def needs_manual_exchange_rate?
+    currency != account.family.currency
+  end
+
+  def converted_amount
+    return amount_money if currency == account.family.currency
+    
+    if exchange_rate.present?
+      # Convert using manual exchange rate
+      converted_amount = (amount_money.amount * exchange_rate).round(2)
+      Money.new(converted_amount, account.family.currency)
+    else
+      # Fallback to automatic exchange rate lookup
+      amount_money.exchange_to(account.family.currency, fallback_rate: 1)
+    end
   end
 
   class << self

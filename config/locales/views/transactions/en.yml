@@ -18,6 +18,8 @@ en:
       submit: Add transaction
       tags_label: Tags
       transfer: Transfer
+      exchange_rate: Exchange Rate
+      exchange_rate_help: "Enter the exchange rate from %{from} to %{to} for this transaction"
     new:
       new_transaction: New transaction
     show:

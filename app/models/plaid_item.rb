@@ -4,9 +4,11 @@ class PlaidItem < ApplicationRecord
   enum :plaid_region, { us: "us", eu: "eu" }
   enum :status, { good: "good", requires_update: "requires_update" }, default: :good
 
-  if Rails.application.credentials.active_record_encryption.present?
-    encrypts :access_token, deterministic: true
-  end
+  # Temporarily disabled to avoid startup issues
+  # TODO: Re-enable when credentials are properly configured
+  # if Rails.application.credentials.active_record_encryption.present?
+  #   encrypts :access_token, deterministic: true
+  # end
 
   validates :name, :access_token, presence: true
 

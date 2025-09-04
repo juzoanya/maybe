@@ -37,7 +37,10 @@ services:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
-    command: bundle exec sidekiq
+    volumes:
+      - ..:/workspace:cached
+      - bundle_cache:/bundle
+    command: sh -c "bundle install && bundle exec sidekiq"
     restart: unless-stopped
     environment:
       <<: *rails_env

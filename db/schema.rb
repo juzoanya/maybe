@@ -232,6 +232,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_24_115507) do
     t.text "notes"
     t.boolean "excluded", default: false
     t.string "plaid_id"
+    t.decimal "exchange_rate", precision: 19, scale: 6
     t.jsonb "locked_attributes", default: {}
     t.index "lower((name)::text)", name: "index_entries_on_lower_name"
     t.index ["account_id", "date"], name: "index_entries_on_account_id_and_date"

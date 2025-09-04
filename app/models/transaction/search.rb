@@ -45,24 +45,21 @@ class Transaction::Search
   def totals
     @totals ||= begin
       Rails.cache.fetch("transaction_search_totals/#{cache_key_base}") do
-        result = transactions_scope
-                  .select(
-                    "COALESCE(SUM(CASE WHEN entries.amount >= 0 AND transactions.kind NOT IN ('funds_movement', 'cc_payment') THEN ABS(entries.amount * COALESCE(er.rate, 1)) ELSE 0 END), 0) as expense_total",
-                    "COALESCE(SUM(CASE WHEN entries.amount < 0 AND transactions.kind NOT IN ('funds_movement', 'cc_payment') THEN ABS(entries.amount * COALESCE(er.rate, 1)) ELSE 0 END), 0) as income_total",
-                    "COUNT(entries.id) as transactions_count"
-                  )
-                  .joins(
-                    ActiveRecord::Base.sanitize_sql_array([
-                      "LEFT JOIN exchange_rates er ON (er.date = entries.date AND er.from_currency = entries.currency AND er.to_currency = ?)",
-                      family.currency
-                    ])
-                  )
-                  .take
+        # Use the converted_amount method from Entry model to properly handle manual exchange rates
+        entries = transactions_scope.includes(:entry).map(&:entry)
+        
+        expense_total = entries.select { |entry| 
+          entry.amount >= 0 && !entry.transaction.kind.in?(['funds_movement', 'cc_payment'])
+        }.sum { |entry| entry.converted_amount.amount }
+        
+        income_total = entries.select { |entry| 
+          entry.amount < 0 && !entry.transaction.kind.in?(['funds_movement', 'cc_payment'])
+        }.sum { |entry| entry.converted_amount.amount.abs }
 
         Totals.new(
-          count: result.transactions_count.to_i,
-          income_money: Money.new(result.income_total.round, family.currency),
-          expense_money: Money.new(result.expense_total.round, family.currency)
+          count: entries.count,
+          income_money: Money.new(income_total, family.currency),
+          expense_money: Money.new(expense_total, family.currency)
         )
       end
     end

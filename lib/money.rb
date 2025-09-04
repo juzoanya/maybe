@@ -58,6 +58,22 @@ class Money
     { amount: amount, currency: currency.iso_code, formatted: format }.as_json
   end
 
+  def cents
+    (amount * 100).round
+  end
+
+  def to_d
+    amount
+  end
+
+  def ceil
+    amount.ceil
+  end
+
+  def abs
+    self.class.new(amount.abs, currency)
+  end
+
   def <=>(other)
     raise TypeError, "Money can only be compared with other Money objects except for 0" unless other.is_a?(Money) || other.eql?(0)
 

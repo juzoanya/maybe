@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 
-// Connects to data-controller="dialog"
+// Connects to data-controller="DS--dialog"
 export default class extends Controller {
   static targets = ["content"]
 
@@ -30,4 +30,4 @@ export default class extends Controller {
       Turbo.visit(window.location.href);
     }
   }
-}
+} 

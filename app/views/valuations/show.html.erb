@@ -17,7 +17,7 @@
         <%= styled_form_with model: entry,
               url: confirm_update_valuation_path(entry),
               method: :post,
-              data: { turbo_frame: :modal },
+              data: { turbo_frame: :modal, controller: "transaction-form", family_currency: Current.family.currency, account_currency: account.currency },
               class: "space-y-4" do |f| %>
           <%= f.date_field :date,
                 label: t(".date_label"),
@@ -26,6 +26,37 @@
           <%= f.money_field :amount,
                 label: "Account value on date",
                 disable_currency: true %>
+
+          <% if entry.needs_manual_exchange_rate? %>
+            <div class="form-field" data-transaction-form-target="exchangeRateField">
+              <%= f.label :exchange_rate, t(".exchange_rate"), class: "form-field__label" do %>
+                <%= t(".exchange_rate") %>
+                <span class="text-red-500 ml-0.5">*</span>
+              <% end %>
+              <div class="form-field__body">
+                <div class="flex items-center gap-2">
+                  <span class="text-subdued text-sm">1 <span data-transaction-form-target="selectedCurrency"></span> =</span>
+                  <%= f.number_field :exchange_rate,
+                      class: "form-field__input",
+                      placeholder: "1.0",
+                      step: "0.000001",
+                      min: "0.000001",
+                      required: false,
+                      value: entry.exchange_rate || 1.0,
+                      readonly: entry.exchange_rate.present? %>
+                  <span class="text-subdued text-sm"><%= Current.family.currency %></span>
+                </div>
+                <p class="text-xs text-subdued mt-1">
+                  <%= t(".exchange_rate_help", from: "%{from}", to: Current.family.currency) %>
+                </p>
+                <% if entry.exchange_rate.present? %>
+                  <p class="text-xs text-warning mt-1">
+                    <%= t(".exchange_rate_locked") %>
+                  </p>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
 
           <div class="flex justify-end">
             <%= render DS::Button.new(

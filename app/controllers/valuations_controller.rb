@@ -8,6 +8,8 @@ class ValuationsController < ApplicationController
     @reconciliation_dry_run = @entry.account.create_reconciliation(
       balance: entry_params[:amount],
       date: entry_params[:date],
+      currency: entry_params[:currency],
+      exchange_rate: entry_params[:exchange_rate],
       dry_run: true
     )
 
@@ -23,6 +25,8 @@ class ValuationsController < ApplicationController
       @entry,
       balance: entry_params[:amount],
       date: entry_params[:date],
+      currency: entry_params[:currency],
+      exchange_rate: entry_params[:exchange_rate],
       dry_run: true
     )
 
@@ -35,6 +39,8 @@ class ValuationsController < ApplicationController
     result = account.create_reconciliation(
       balance: entry_params[:amount],
       date: entry_params[:date],
+      currency: entry_params[:currency],
+      exchange_rate: entry_params[:exchange_rate],
     )
 
     if result.success?
@@ -53,10 +59,16 @@ class ValuationsController < ApplicationController
     @entry.update!(notes: entry_params[:notes]) if entry_params[:notes].present?
 
     if entry_params[:date].present? && entry_params[:amount].present?
+      # Don't allow updating exchange rate if it's already set
+      update_params = entry_params.except(:exchange_rate) if @entry.exchange_rate.present?
+      update_params ||= entry_params
+      
       result = @entry.account.update_reconciliation(
         @entry,
-        balance: entry_params[:amount],
-        date: entry_params[:date],
+        balance: update_params[:amount],
+        date: update_params[:date],
+        currency: update_params[:currency],
+        exchange_rate: update_params[:exchange_rate],
       )
     end
 
@@ -84,6 +96,6 @@ class ValuationsController < ApplicationController
 
   private
     def entry_params
-      params.require(:entry).permit(:date, :amount, :notes)
+      params.require(:entry).permit(:date, :amount, :notes, :exchange_rate, :currency)
     end
 end

@@ -74,7 +74,8 @@
                           disabled: options[:disable_currency],
                           data: {
                             "money-field-target": "currency",
-                            action: "change->money-field#handleCurrencyChange",
+                            "transaction-form-target": "currencySelect",
+                            action: "change->money-field#handleCurrencyChange change->transaction-form#currencyChanged",
                             "auto-submit-form-target": ("auto" if options[:auto_submit])
                           }.compact
                         } %>

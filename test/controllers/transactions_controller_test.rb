@@ -35,6 +35,39 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
     assert_enqueued_with(job: SyncJob)
   end
 
+  test "creates transaction with manual exchange rate" do
+    @user.family.update!(currency: "USD")
+    account = @user.family.accounts.create!(
+      name: "NGN Account", 
+      balance: 0, 
+      currency: "NGN", 
+      accountable: Depository.new
+    )
+
+    assert_difference [ "Entry.count", "Transaction.count" ], 1 do
+      post transactions_url, params: {
+        entry: {
+          account_id: account.id,
+          name: "NGN Transaction",
+          date: Date.current,
+          currency: "NGN",
+          amount: 1000,
+          exchange_rate: 0.0025,
+          nature: "outflow",
+          entryable_type: "Transaction",
+          entryable_attributes: {
+            category_id: Category.first.id
+          }
+        }
+      }
+    end
+
+    created_entry = Entry.order(:created_at).last
+    assert_equal 0.0025, created_entry.exchange_rate
+    assert_equal "NGN", created_entry.currency
+    assert_equal 1000, created_entry.amount
+  end
+
   test "updates with transaction details" do
     assert_no_difference [ "Entry.count", "Transaction.count" ] do
       patch transaction_url(@entry), params: {

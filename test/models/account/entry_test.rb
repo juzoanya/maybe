@@ -84,4 +84,40 @@ class EntryTest < ActiveSupport::TestCase
     # Should not include entry from disabled account
     assert_not_includes visible_entries, invisible_transaction
   end
+
+  test "needs_manual_exchange_rate returns true when currency differs from family currency" do
+    @entry.account.family.update!(currency: "USD")
+    @entry.update!(currency: "EUR")
+    
+    assert @entry.needs_manual_exchange_rate?
+  end
+
+  test "needs_manual_exchange_rate returns false when currency matches family currency" do
+    @entry.account.family.update!(currency: "USD")
+    @entry.update!(currency: "USD")
+    
+    assert_not @entry.needs_manual_exchange_rate?
+  end
+
+  test "converted_amount uses manual exchange rate when present" do
+    @entry.account.family.update!(currency: "USD")
+    @entry.update!(currency: "EUR", amount: 100, exchange_rate: 1.2)
+    
+    assert_equal 120, @entry.converted_amount
+  end
+
+  test "converted_amount falls back to automatic conversion when no manual rate" do
+    @entry.account.family.update!(currency: "USD")
+    @entry.update!(currency: "EUR", amount: 100, exchange_rate: nil)
+    
+    # Should use automatic conversion (fallback rate of 1)
+    assert_equal 100, @entry.converted_amount
+  end
+
+  test "converted_amount returns original amount when currencies match" do
+    @entry.account.family.update!(currency: "USD")
+    @entry.update!(currency: "USD", amount: 100)
+    
+    assert_equal 100, @entry.converted_amount
+  end
 end

@@ -64,6 +64,65 @@ class Balance::ChartSeriesBuilderTest < ActiveSupport::TestCase
     assert_equal expected, builder.balance_series.map { |v| v.value.amount }
   end
 
+  test "prioritizes manual exchange rates over automatic ones" do
+    account = accounts(:depository)
+    account.update!(currency: "EUR")
+    account.balances.destroy_all
+
+    # Create a balance in EUR
+    create_balance(account: account, date: Date.current, balance: 1000)
+
+    # Create an automatic exchange rate (1 EUR = 1.2 USD)
+    ExchangeRate.create!(date: Date.current, from_currency: "EUR", to_currency: "USD", rate: 1.2)
+
+    # Create a manual exchange rate entry (1 EUR = 1.5 USD) - this should be prioritized
+    entry = Entry.create!(
+      account: account,
+      date: Date.current,
+      name: "Manual Rate Entry",
+      amount: 100,
+      currency: "EUR",
+      exchange_rate: 1.5,
+      entryable: Transaction.create!(category: categories(:food))
+    )
+
+    builder = Balance::ChartSeriesBuilder.new(
+      account_ids: [account.id],
+      currency: "USD",
+      period: Period.custom(start_date: Date.current, end_date: Date.current),
+      interval: "1 day"
+    )
+
+    # Should use manual rate (1.5) instead of automatic rate (1.2)
+    # 1000 EUR * 1.5 = 1500 USD
+    assert_equal 1500, builder.balance_series.first.value.amount
+  end
+
+  test "falls back to automatic exchange rate when no manual rate exists" do
+    account = accounts(:depository)
+    account.update!(currency: "EUR")
+    account.balances.destroy_all
+
+    # Create a balance in EUR
+    create_balance(account: account, date: Date.current, balance: 1000)
+
+    # Create an automatic exchange rate (1 EUR = 1.2 USD)
+    ExchangeRate.create!(date: Date.current, from_currency: "EUR", to_currency: "USD", rate: 1.2)
+
+    # No manual exchange rate entries
+
+    builder = Balance::ChartSeriesBuilder.new(
+      account_ids: [account.id],
+      currency: "USD",
+      period: Period.custom(start_date: Date.current, end_date: Date.current),
+      interval: "1 day"
+    )
+
+    # Should use automatic rate (1.2) when no manual rate exists
+    # 1000 EUR * 1.2 = 1200 USD
+    assert_equal 1200, builder.balance_series.first.value.amount
+  end
+
   test "combines asset and liability accounts properly" do
     asset_account = accounts(:depository)
     liability_account = accounts(:credit_card)

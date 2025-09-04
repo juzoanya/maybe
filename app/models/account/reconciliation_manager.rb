@@ -6,9 +6,9 @@ class Account::ReconciliationManager
   end
 
   # Reconciles balance by creating a Valuation entry. If existing valuation is provided, it will be updated instead of creating a new one.
-  def reconcile_balance(balance:, date: Date.current, dry_run: false, existing_valuation_entry: nil)
+  def reconcile_balance(balance:, date: Date.current, dry_run: false, existing_valuation_entry: nil, currency: nil, exchange_rate: nil)
     old_balance_components = old_balance_components(reconciliation_date: date, existing_valuation_entry: existing_valuation_entry)
-    prepared_valuation = prepare_reconciliation(balance, date, existing_valuation_entry)
+    prepared_valuation = prepare_reconciliation(balance, date, existing_valuation_entry, currency, exchange_rate)
 
     unless dry_run
       prepared_valuation.save!
@@ -41,7 +41,7 @@ class Account::ReconciliationManager
       keyword_init: true
     )
 
-    def prepare_reconciliation(balance, date, existing_valuation)
+    def prepare_reconciliation(balance, date, existing_valuation, currency = nil, exchange_rate = nil)
       valuation_record = existing_valuation ||
                          account.entries.valuations.find_by(date: date) || # In case of conflict, where existing valuation is not passed as arg, but one exists
                          account.entries.build(
@@ -52,7 +52,8 @@ class Account::ReconciliationManager
       valuation_record.assign_attributes(
         date: date,
         amount: balance,
-        currency: account.currency
+        currency: currency || account.currency,
+        exchange_rate: exchange_rate
       )
 
       valuation_record

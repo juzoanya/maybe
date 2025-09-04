@@ -52,6 +52,12 @@ class PagesController < ApplicationController
     render layout: "blank"
   end
 
+  def health
+    # Simple health check endpoint for production monitoring
+    # Returns 200 if the application is running
+    render plain: "healthy", status: :ok
+  end
+
   private
     def github_provider
       Provider::Registry.get_provider(:github)

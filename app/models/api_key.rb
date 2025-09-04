@@ -2,7 +2,9 @@ class ApiKey < ApplicationRecord
   belongs_to :user
 
   # Use Rails built-in encryption for secure storage
-  encrypts :display_key, deterministic: true
+  # Temporarily disabled to avoid startup issues
+  # TODO: Re-enable when credentials are properly configured
+  # encrypts :display_key, deterministic: true
 
   # Constants
   SOURCES = [ "web", "mobile" ].freeze

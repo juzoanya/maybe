@@ -100,23 +100,24 @@ class Balance::ChartSeriesBuilder
         SELECT
           d.date,
           -- Use flows_factor: already handles asset (+1) vs liability (-1)
-          COALESCE(SUM(last_bal.end_balance * last_bal.flows_factor * COALESCE(er.rate, 1) * :sign_multiplier::integer), 0) AS end_balance,
-          COALESCE(SUM(last_bal.end_cash_balance * last_bal.flows_factor * COALESCE(er.rate, 1) * :sign_multiplier::integer), 0) AS end_cash_balance,
+          -- Prioritize manual exchange rates over automatic ones for accuracy
+          COALESCE(SUM(last_bal.end_balance * last_bal.flows_factor * COALESCE(manual_er.rate, er.rate, 1) * :sign_multiplier::integer), 0) AS end_balance,
+          COALESCE(SUM(last_bal.end_cash_balance * last_bal.flows_factor * COALESCE(manual_er.rate, er.rate, 1) * :sign_multiplier::integer), 0) AS end_cash_balance,
           -- Holdings only for assets (flows_factor = 1)
           COALESCE(SUM(
             CASE WHEN last_bal.flows_factor = 1
               THEN last_bal.end_non_cash_balance
               ELSE 0
-            END * COALESCE(er.rate, 1) * :sign_multiplier::integer
+            END * COALESCE(manual_er.rate, er.rate, 1) * :sign_multiplier::integer
           ), 0) AS end_holdings_balance,
           -- Previous balances
-          COALESCE(SUM(last_bal.start_balance * last_bal.flows_factor * COALESCE(er.rate, 1) * :sign_multiplier::integer), 0) AS start_balance,
-          COALESCE(SUM(last_bal.start_cash_balance * last_bal.flows_factor * COALESCE(er.rate, 1) * :sign_multiplier::integer), 0) AS start_cash_balance,
+          COALESCE(SUM(last_bal.start_balance * last_bal.flows_factor * COALESCE(manual_er.rate, er.rate, 1) * :sign_multiplier::integer), 0) AS start_balance,
+          COALESCE(SUM(last_bal.start_cash_balance * last_bal.flows_factor * COALESCE(manual_er.rate, er.rate, 1) * :sign_multiplier::integer), 0) AS start_cash_balance,
           COALESCE(SUM(
             CASE WHEN last_bal.flows_factor = 1
               THEN last_bal.start_non_cash_balance
               ELSE 0
-            END * COALESCE(er.rate, 1) * :sign_multiplier::integer
+            END * COALESCE(manual_er.rate, er.rate, 1) * :sign_multiplier::integer
           ), 0) AS start_holdings_balance
         FROM dates d
         CROSS JOIN accounts
@@ -134,6 +135,18 @@ class Balance::ChartSeriesBuilder
           ORDER BY b.date DESC
           LIMIT 1
         ) last_bal ON TRUE
+        -- First try to get manual exchange rate from recent entries (prioritized)
+        LEFT JOIN LATERAL (
+          SELECT e.exchange_rate as rate
+          FROM entries e
+          WHERE e.account_id = accounts.id
+            AND e.date <= d.date
+            AND e.exchange_rate IS NOT NULL
+            AND e.currency != :target_currency
+          ORDER BY e.date DESC, e.created_at DESC
+          LIMIT 1
+        ) manual_er ON TRUE
+        -- Fallback to automatic exchange rate from exchange_rates table
         LEFT JOIN LATERAL (
           SELECT er.rate
           FROM exchange_rates er

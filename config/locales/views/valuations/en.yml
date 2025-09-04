@@ -4,6 +4,8 @@ en:
     form:
       amount: Amount
       submit: Add balance update
+      exchange_rate: Exchange Rate
+      exchange_rate_help: "Enter the exchange rate from %{from} to %{to} for this balance"
     header:
       balance: Balance
     index:
@@ -28,3 +30,6 @@ en:
       note_placeholder: Add any additional details about this entry
       overview: Overview
       settings: Settings
+      exchange_rate: Exchange Rate
+      exchange_rate_help: "Enter the exchange rate from %{from} to %{to} for this balance"
+      exchange_rate_locked: "Exchange rate is locked and cannot be changed once set."
