@@ -1,0 +1,170 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maybe-web
+  namespace: maybe
+  labels:
+    app: maybe
+    component: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: maybe
+      component: web
+  template:
+    metadata:
+      labels:
+        app: maybe
+        component: web
+    spec:
+      containers:
+      - name: web
+        image: ghcr.io/maybe-finance/maybe:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: maybe-config
+        - secretRef:
+            name: maybe-secrets
+        env:
+        - name: DB_HOST
+          value: "maybe-postgres"
+        - name: REDIS_URL
+          value: "redis://maybe-redis:6379/1"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: app-storage
+          mountPath: /rails/storage
+        - name: app-logs
+          mountPath: /rails/log
+      volumes:
+      - name: app-storage
+        persistentVolumeClaim:
+          claimName: maybe-app-storage
+      - name: app-logs
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maybe-worker
+  namespace: maybe
+  labels:
+    app: maybe
+    component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: maybe
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: maybe
+        component: worker
+    spec:
+      containers:
+      - name: worker
+        image: ghcr.io/maybe-finance/maybe:latest
+        command: ["bundle", "exec", "sidekiq"]
+        envFrom:
+        - configMapRef:
+            name: maybe-config
+        - secretRef:
+            name: maybe-secrets
+        env:
+        - name: DB_HOST
+          value: "maybe-postgres"
+        - name: REDIS_URL
+          value: "redis://maybe-redis:6379/1"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "ps aux | grep sidekiq | grep -v grep"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "ps aux | grep sidekiq | grep -v grep"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+        - name: app-storage
+          mountPath: /rails/storage
+        - name: app-logs
+          mountPath: /rails/log
+      volumes:
+      - name: app-storage
+        persistentVolumeClaim:
+          claimName: maybe-app-storage
+      - name: app-logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maybe-web
+  namespace: maybe
+  labels:
+    app: maybe
+    component: web
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+  selector:
+    app: maybe
+    component: web
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maybe-app-storage
+  namespace: maybe
+  labels:
+    app: maybe
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "standard"
+  resources:
+    requests:
+      storage: 20Gi 

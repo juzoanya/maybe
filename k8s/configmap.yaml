@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: maybe-config
+  namespace: maybe
+  labels:
+    app: maybe
+    component: config
+data:
+  # Rails Configuration
+  RAILS_ENV: "production"
+  RAILS_SERVE_STATIC_FILES: "true"
+  RAILS_LOG_TO_STDOUT: "true"
+  
+  # App Configuration
+  SELF_HOSTED: "true"
+  APP_MODE: "self_hosted"
+  
+  # Database Configuration
+  DB_HOST: "maybe-postgres"
+  DB_PORT: "5432"
+  DB_POOL: "20"
+  
+  # Redis Configuration
+  REDIS_URL: "redis://maybe-redis:6379/1"
+  
+  # Performance Tuning
+  WEB_CONCURRENCY: "2"
+  SIDEKIQ_CONCURRENCY: "10"
+  
+  # Log Level
+  LOG_LEVEL: "info" 
